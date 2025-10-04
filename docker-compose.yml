@@ -1,0 +1,11 @@
+
+
+services:
+  scraper:
+    build: .
+    container_name: instagram_scraper
+    env_file:
+      - ./.env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
