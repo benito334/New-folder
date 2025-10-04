@@ -27,11 +27,14 @@ DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # Monitoring settings
 TARGET_ACCOUNT = os.getenv("TARGET_ACCOUNT", "")
 MAX_DOWNLOADS_PER_SCRAPE = int(os.getenv("MAX_DOWNLOADS", "10"))
-WAIT_BETWEEN_DOWNLOADS = int(os.getenv("WAIT_BETWEEN_DOWNLOADS", "5"))
+WAIT_BETWEEN_DOWNLOADS_MIN = int(os.getenv("WAIT_BETWEEN_DOWNLOADS_MIN", "5"))
+WAIT_BETWEEN_DOWNLOADS_MAX = int(os.getenv("WAIT_BETWEEN_DOWNLOADS_MAX", "10"))
 SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL", "300"))
 
 # Logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+# Headless browser flag (1=true, 0=false)
+HEADLESS = os.getenv("HEADLESS", "true").strip().lower() == "true"
 
 
 def setup_logging(module_name: str = "app") -> None:
