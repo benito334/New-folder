@@ -6,7 +6,11 @@ from pathlib import Path
 from loguru import logger
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
+import json
+from datetime import datetime
+
 from .config import DOWNLOAD_DIR, setup_logging
+from .db import contains_source_id, insert_metadata
 
 # Initialise robust logging
 setup_logging("scraper")
@@ -15,6 +19,7 @@ INSTAGRAM_BASE = "https://www.instagram.com"
 
 
 def scrape_account(username: str, download: bool = False, max_downloads: int = 1000) -> List[Dict]:
+    """Return list of post metadata dicts and optionally download new videos."""
     """Scrape the Instagram feed of a public account for posts."""
     posts: List[Dict] = []
     downloads_done = 0
@@ -69,9 +74,8 @@ def scrape_account(username: str, download: bool = False, max_downloads: int = 1
                     logger.exception("Failed to inspect post {}: {}", url, e)
 
                 date_str = ""
-                if media_type == "video" and "upload_ts" in locals() and upload_ts:
-                    from datetime import datetime
-                    date_str = datetime.utcfromtimestamp(upload_ts).strftime("%Y%m%dT%H%M%S")
+                if media_type == "video" and upload_ts:
+                                        date_str = datetime.utcfromtimestamp(upload_ts).strftime("%Y%m%dT%H%M%S")
                 post_meta = {
                     "id": post_id,
                     "url": url,
@@ -79,17 +83,42 @@ def scrape_account(username: str, download: bool = False, max_downloads: int = 1
                     "media_type": media_type,
                 }
 
+                # Skip if already in DB
+                if contains_source_id(post_id):
+                    continue
+
                 if download and media_type == "video" and video_src and downloads_done < max_downloads:
                     try:
                         Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)
                         ts_suffix = post_meta["date_posted"] or str(int(time.time()))
-                        dest_path = Path(DOWNLOAD_DIR) / f"{post_id}_{ts_suffix}.mp4"
+                        dest_path = DOWNLOAD_DIR / f"{post_id}_{ts_suffix}.mp4"
                         if not dest_path.exists():
                             logger.debug("Downloading video {}", video_src)
                             r = requests.get(video_src, timeout=120)
                             dest_path.write_bytes(r.content)
                             downloads_done += 1
                             logger.info("Downloaded video to {} ({} / {})", dest_path, downloads_done, max_downloads)
+
+                            # write JSON sidecar
+                            meta_path = dest_path.with_suffix(".json")
+                            with meta_path.open("w", encoding="utf-8") as fp:
+                                json.dump(post_meta, fp, ensure_ascii=False, indent=2)
+
+                            # insert into DB
+                            record = {
+                                "source_id": post_id,
+                                "source_type": "instagram",
+                                "original_url": url,
+                                "file_path": str(dest_path.relative_to(DOWNLOAD_DIR.parent)),
+                                "publish_date": post_meta["date_posted"],
+                                "author": username,
+                                "length_seconds": None,
+                                "language": None,
+                                "license": None,
+                                "ingest_date": datetime.utcnow().isoformat(timespec="seconds"),
+                                "notes": "",
+                            }
+                            insert_metadata(record)
                         else:
                             logger.debug("Video {} already exists on disk", dest_path)
                     except Exception as e:

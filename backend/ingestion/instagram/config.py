@@ -15,7 +15,11 @@ load_dotenv()
 # project root: three levels up from this file (instagram -> ingestion -> backend -> ROOT)
 BASE_DIR = Path(__file__).resolve().parents[3]
 DATA_DIR = BASE_DIR / "data"
-DOWNLOAD_DIR = Path(os.getenv("DOWNLOAD_DIR", DATA_DIR / "downloads"))
+DB_DIR = DATA_DIR / "db"
+DB_DIR.mkdir(exist_ok=True)
+DB_FILE = DB_DIR / "media_metadata.db"
+
+DOWNLOAD_DIR = Path(os.getenv("DOWNLOAD_DIR", DATA_DIR / "downloads")) / "instagram"
 
 DATA_DIR.mkdir(exist_ok=True)
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
