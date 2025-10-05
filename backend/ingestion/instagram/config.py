@@ -38,6 +38,17 @@ CLASSIFY_DELAY_MIN = float(os.getenv("CLASSIFY_DELAY_MIN", "0"))
 CLASSIFY_DELAY_MAX = float(os.getenv("CLASSIFY_DELAY_MAX", "0"))
 MAX_CLASSIFICATIONS_PER_SCRAPE = int(os.getenv("MAX_CLASSIFICATIONS_PER_SCRAPE", "1000"))
 
+# Proxy (Smartproxy) settings
+PROXY_SERVER = os.getenv("PROXY_SERVER", "")  # e.g. pr.smartproxy.com
+PROXY_PORT_BASE = int(os.getenv("PROXY_PORT_BASE", "10000"))  # starting port
+PROXY_PORT_MAX = int(os.getenv("PROXY_PORT_MAX", "10099"))    # ending port
+PROXY_USER = os.getenv("PROXY_USER", "")
+PROXY_PASS = os.getenv("PROXY_PASS", "")
+PROXY_ENABLED = os.getenv("PROXY_ENABLED", "false").strip().lower() == "true" and bool(PROXY_SERVER)
+
+# Post page timeout (ms)
+POST_TIMEOUT_MS = int(os.getenv("POST_TIMEOUT_MS", "120000"))
+
 # Logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 # Headless browser flag (1=true, 0=false)

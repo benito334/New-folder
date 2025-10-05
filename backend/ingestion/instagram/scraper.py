@@ -21,6 +21,13 @@ from .config import (
     CLASSIFY_DELAY_MIN,
     CLASSIFY_DELAY_MAX,
     MAX_CLASSIFICATIONS_PER_SCRAPE,
+    PROXY_ENABLED,
+    PROXY_SERVER,
+    PROXY_PORT_BASE,
+    PROXY_PORT_MAX,
+    PROXY_USER,
+    PROXY_PASS,
+    POST_TIMEOUT_MS,
 )
 from .db import contains_source_id, insert_metadata
 
@@ -41,7 +48,16 @@ def scrape_account(username: str, download: bool = False, max_downloads: int = 1
         rand_ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{random.randint(100,120)}.0.{random.randint(1000,9999)}.0 Safari/537.36"
         viewport = {"width": random.randint(1200, 1920), "height": random.randint(800, 1080)}
         logger.debug("Using UA={} viewport={}x{}", rand_ua, viewport['width'], viewport['height'])
-        context = browser.new_context(user_agent=rand_ua, viewport=viewport)
+        proxy_cfg = None
+        if PROXY_ENABLED:
+            port = random.randint(PROXY_PORT_BASE, PROXY_PORT_MAX)
+            proxy_cfg = {
+                "server": f"http://{PROXY_SERVER}:{port}",
+                "username": PROXY_USER,
+                "password": PROXY_PASS,
+            }
+            logger.debug("Using proxy {}:{}", PROXY_SERVER, port)
+        context = browser.new_context(user_agent=rand_ua, viewport=viewport, proxy=proxy_cfg)
         page = context.new_page()
         target_url = f"{INSTAGRAM_BASE}/{username}/"
         logger.debug("Navigating to {}", target_url)
@@ -57,6 +73,7 @@ def scrape_account(username: str, download: bool = False, max_downloads: int = 1
             processed_post_ids: Set[str] = set()
             classified_count = 0
             unchanged_scrolls = 0
+            stop_due_to_download_cap = False
             while True:
                 anchors = page.query_selector_all("article a")
                 if len(anchors) == len(processed_post_ids):
@@ -90,7 +107,16 @@ def scrape_account(username: str, download: bool = False, max_downloads: int = 1
                     # --- Inspect individual post page ---
                     try:
                         post_page = context.new_page()
-                        post_page.goto(url, timeout=60000)
+                        for attempt in (1, 2):
+                            try:
+                                post_page.goto(url, timeout=POST_TIMEOUT_MS)
+                                break
+                            except PlaywrightTimeoutError:
+                                if attempt == 2:
+                                    logger.error("Post {} timed-out after {}ms twice; skipping", post_id, POST_TIMEOUT_MS)
+                                    has_video = False
+                                    break
+                                logger.debug("First timeout on post {}; retrying once", post_id)
                         # wait a bit for video element or meta tag to load (lazy-loaded reels)
                         try:
                             post_page.wait_for_selector("video, meta[property='og:video']", timeout=5000)
