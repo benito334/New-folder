@@ -25,7 +25,7 @@ from .config import (
 from .db import contains_source_id, insert_metadata
 
 # Initialise robust logging
-setup_logging("scraper")
+#setup_logging("scraper")
 INSTAGRAM_BASE = "https://www.instagram.com"
 
 
@@ -40,6 +40,7 @@ def scrape_account(username: str, download: bool = False, max_downloads: int = 1
         # Rotate UA & viewport
         rand_ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{random.randint(100,120)}.0.{random.randint(1000,9999)}.0 Safari/537.36"
         viewport = {"width": random.randint(1200, 1920), "height": random.randint(800, 1080)}
+        logger.debug("Using UA={} viewport={}x{}", rand_ua, viewport['width'], viewport['height'])
         context = browser.new_context(user_agent=rand_ua, viewport=viewport)
         page = context.new_page()
         target_url = f"{INSTAGRAM_BASE}/{username}/"
@@ -90,15 +91,27 @@ def scrape_account(username: str, download: bool = False, max_downloads: int = 1
                     try:
                         post_page = context.new_page()
                         post_page.goto(url, timeout=60000)
-                        has_video = post_page.query_selector("video") is not None
+                        # wait a bit for video element or meta tag to load (lazy-loaded reels)
+                        try:
+                            post_page.wait_for_selector("video, meta[property='og:video']", timeout=5000)
+                        except PlaywrightTimeoutError:
+                            pass  # element didn't appear in time
+
+                        video_el = post_page.query_selector("video")
+                        if video_el is None:
+                            meta_tag = post_page.query_selector("meta[property='og:video']")
+                            if meta_tag:
+                                video_src = meta_tag.get_attribute("content")
+                                has_video = True
+                            else:
+                                has_video = False
+                        else:
+                            has_video = True
+                            video_src = video_el.get_attribute("src")
+
                         if has_video:
                             media_type = "video"
-                            video_el = post_page.query_selector("video")
-                            video_src = video_el.get_attribute("src") if video_el else None
-                            if not video_src:
-                                meta_tag = post_page.query_selector("meta[property='og:video']")
-                                if meta_tag:
-                                    video_src = meta_tag.get_attribute("content")
+                            # get upload timestamp if available
                             ts_meta = post_page.query_selector("meta[property='og:video:upload_date']")
                             if ts_meta:
                                 try:
