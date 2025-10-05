@@ -35,10 +35,22 @@ def get_conn() -> sqlite3.Connection:
 
 
 def contains_source_id(source_id: str) -> bool:
-    conn = get_conn()
-    cur = conn.execute("SELECT 1 FROM media_metadata WHERE source_id=?", (source_id,))
-    exists = cur.fetchone() is not None
-    conn.close()
+    """Return True if source_id exists; on database error log and return False."""
+    try:
+        conn = get_conn()
+        cur = conn.execute(
+            "SELECT 1 FROM media_metadata WHERE source_id=?",
+            (source_id,),
+        )
+        exists = cur.fetchone() is not None
+    except sqlite3.DatabaseError as e:
+        logger.error("Database error while checking source_id %s: %s; treating as absent", source_id, e)
+        exists = False
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
     return exists
 
 

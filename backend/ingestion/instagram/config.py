@@ -31,6 +31,13 @@ WAIT_BETWEEN_DOWNLOADS_MIN = int(os.getenv("WAIT_BETWEEN_DOWNLOADS_MIN", "5"))
 WAIT_BETWEEN_DOWNLOADS_MAX = int(os.getenv("WAIT_BETWEEN_DOWNLOADS_MAX", "10"))
 SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL", "300"))
 
+# Delay configuration (seconds)
+SCROLL_DELAY_MIN = float(os.getenv("SCROLL_DELAY_MIN", "1"))
+SCROLL_DELAY_MAX = float(os.getenv("SCROLL_DELAY_MAX", "2"))
+CLASSIFY_DELAY_MIN = float(os.getenv("CLASSIFY_DELAY_MIN", "0"))
+CLASSIFY_DELAY_MAX = float(os.getenv("CLASSIFY_DELAY_MAX", "0"))
+MAX_CLASSIFICATIONS_PER_SCRAPE = int(os.getenv("MAX_CLASSIFICATIONS_PER_SCRAPE", "1000"))
+
 # Logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 # Headless browser flag (1=true, 0=false)
